@@ -2,8 +2,8 @@ name: Monthly Keyword Tracker
 
 on:
   schedule:
-    - cron: '0 0 1 * *'   # 매월 1일 09:00 KST (UTC 0시)
-  workflow_dispatch:        # 수동 실행 가능
+    - cron: '0 0 1 * *'
+  workflow_dispatch:
 
 jobs:
   fetch-keywords:
@@ -21,6 +21,8 @@ jobs:
           NAVER_CUSTOMER_ID: ${{ secrets.NAVER_CUSTOMER_ID }}
           NAVER_API_KEY: ${{ secrets.NAVER_API_KEY }}
           NAVER_SECRET_KEY: ${{ secrets.NAVER_SECRET_KEY }}
+          NAVER_DATALAB_CLIENT_ID: ${{ secrets.NAVER_DATALAB_CLIENT_ID }}
+          NAVER_DATALAB_CLIENT_SECRET: ${{ secrets.NAVER_DATALAB_CLIENT_SECRET }}
 
       - name: Commit and push
         run: |
