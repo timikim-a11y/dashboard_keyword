@@ -216,7 +216,7 @@ function renderFilters(){
   const years=getAvailableYears();
   document.getElementById('yearRow').innerHTML=
     `<span class="filter-label">연도</span>`+
-    years.map(y=>`<button class="f-btn${selYears.has(y)?' active':''}" onclick="toggleYear('${y}')">${20+parseInt(y)}년</button>`).join('')+
+    years.map(y=>`<button class="f-btn${selYears.has(y)?' active':''}" onclick="toggleYear('${y}')">${y}년</button>`).join('')+
     (selYears.size>0?`<button class="f-btn" style="color:var(--mt);font-size:10px" onclick="clearYears()">✕ 초기화</button>`:'');
 
   // Month row
