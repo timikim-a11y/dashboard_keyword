@@ -125,6 +125,22 @@ tbody tr:hover td.sticky{background:#FAFAF6}
   <div id="viewChart">
     <div class="chart-wrap"><canvas id="mainChart" height="380"></canvas></div>
     <div class="cards" id="cardGrid"></div>
+
+    <!-- Demographics Section -->
+    <div id="demoSection" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:14px">
+      <div class="chart-wrap" style="padding:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 style="font-size:13px;font-weight:700">👤 성별 검색 비율</h3>
+          <select id="demoKwSelect" onchange="renderDemo()" style="padding:5px 10px;border-radius:6px;border:1px solid var(--bd);font-size:11px;font-family:'Noto Sans KR',sans-serif;background:#fff">
+          </select>
+        </div>
+        <canvas id="genderChart" height="200"></canvas>
+      </div>
+      <div class="chart-wrap" style="padding:16px">
+        <h3 style="font-size:13px;font-weight:700;margin-bottom:12px">📊 연령별 검색 비율</h3>
+        <canvas id="ageChart" height="200"></canvas>
+      </div>
+    </div>
   </div>
 
   <div id="viewTable" class="hidden">
@@ -158,6 +174,7 @@ const TAG_KW={"마녀공장":["마녀공장","마녀공장 클렌징오일","마
 const COLORS=["#2563EB","#059669","#D97706","#DC2626","#7C3AED","#0891B2","#65A30D","#DB2777","#EA580C","#4F46E5","#0D9488","#CA8A04","#9333EA","#0284C7","#16A34A"];
 
 let DATA={};
+let DEMO={};
 let tag="경쟁브랜드_클렌징";
 let view="chart";
 let metric="total";
@@ -192,13 +209,17 @@ function getAvailableYears(){
 
 async function init(){
   try{
-    const r=await fetch('https://raw.githubusercontent.com/timikim-a11y/dashboard_keyword/main/data/history.json');
-    if(r.ok)DATA=await r.json();
+    const [hRes, dRes] = await Promise.all([
+      fetch('https://raw.githubusercontent.com/timikim-a11y/dashboard_keyword/main/data/history.json'),
+      fetch('https://raw.githubusercontent.com/timikim-a11y/dashboard_keyword/main/data/demographics.json').catch(()=>null)
+    ]);
+    if(hRes.ok) DATA=await hRes.json();
+    if(dRes&&dRes.ok) DEMO=await dRes.json();
   }catch{}
   renderAll();
 }
 
-function renderAll(){renderTags();renderFilters();renderView();renderStats();}
+function renderAll(){renderTags();renderFilters();renderView();renderStats();renderDemoSelect();renderDemo();}
 
 function renderTags(){
   document.getElementById('tagBar').innerHTML=TAGS_ORDER.map(t=>
@@ -335,14 +356,24 @@ async function syncGitHub(){
   if(!repo){showMsg('err','GitHub 리포 경로를 입력해주세요');return;}
   showMsg('ok','동기화 중...');
   try{
-    const r=await fetch(`https://raw.githubusercontent.com/${repo}/main/data/history.json?t=${Date.now()}`);
-    if(!r.ok)throw new Error(r.status);
-    const json=await r.json();
+    const [hRes, dRes] = await Promise.all([
+      fetch(`https://raw.githubusercontent.com/${repo}/main/data/history.json?t=${Date.now()}`),
+      fetch(`https://raw.githubusercontent.com/${repo}/main/data/demographics.json?t=${Date.now()}`).catch(()=>null)
+    ]);
+    if(!hRes.ok)throw new Error(hRes.status);
+    const json=await hRes.json();
     for(const[t,md]of Object.entries(json)){
       if(!DATA[t])DATA[t]={};
       for(const[m,kd]of Object.entries(md)){
         if(!DATA[t][m])DATA[t][m]={};
         Object.assign(DATA[t][m],kd);
+      }
+    }
+    if(dRes&&dRes.ok){
+      const dJson=await dRes.json();
+      for(const[m,kd]of Object.entries(dJson)){
+        if(!DEMO[m])DEMO[m]={};
+        Object.assign(DEMO[m],kd);
       }
     }
     renderAll();
@@ -361,6 +392,87 @@ function exportCSV(){
 
 function showMsg(t,m){const b=document.getElementById('msgBar');b.className=`msg ${t==='err'?'err':'ok'}`;document.getElementById('msgText').textContent=m;b.classList.remove('hidden')}
 function hideMsg(){document.getElementById('msgBar').classList.add('hidden')}
+
+let genderChart=null;
+let ageChart=null;
+
+function renderDemoSelect(){
+  const sel=document.getElementById('demoKwSelect');
+  const kws=getKws();
+  sel.innerHTML=kws.map(kw=>`<option value="${kw}">${kw}</option>`).join('');
+}
+
+function renderDemo(){
+  const sec=document.getElementById('demoSection');
+  if(view!=='chart'){sec.style.display='none';return;}
+  sec.style.display='grid';
+
+  const selKwVal=document.getElementById('demoKwSelect').value;
+  // Find latest month with demo data
+  const demoMonths=Object.keys(DEMO).sort((a,b)=>pm(b)-pm(a));
+  let demoData=null;
+  for(const m of demoMonths){
+    if(DEMO[m]&&DEMO[m][selKwVal]){demoData=DEMO[m][selKwVal];break;}
+  }
+
+  // Gender chart
+  if(genderChart)genderChart.destroy();
+  const gCtx=document.getElementById('genderChart').getContext('2d');
+  if(demoData&&demoData.gender&&Object.keys(demoData.gender).length>0){
+    const gLabels=Object.keys(demoData.gender);
+    const gValues=Object.values(demoData.gender);
+    genderChart=new Chart(gCtx,{
+      type:'doughnut',
+      data:{
+        labels:gLabels,
+        datasets:[{data:gValues,backgroundColor:['#FF8A9B','#6BA3E8'],borderWidth:0,hoverOffset:6}]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{
+          legend:{position:'bottom',labels:{color:'#888880',font:{size:11},padding:16,usePointStyle:true}},
+          tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.parsed}%`}}
+        },
+        cutout:'60%'
+      }
+    });
+  }else{
+    genderChart=new Chart(gCtx,{
+      type:'doughnut',
+      data:{labels:['데이터 없음'],datasets:[{data:[1],backgroundColor:['#E0E0D8'],borderWidth:0}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},cutout:'60%'}
+    });
+  }
+
+  // Age chart
+  if(ageChart)ageChart.destroy();
+  const aCtx=document.getElementById('ageChart').getContext('2d');
+  if(demoData&&demoData.age&&Object.keys(demoData.age).length>0){
+    const aLabels=Object.keys(demoData.age);
+    const aValues=Object.values(demoData.age);
+    ageChart=new Chart(aCtx,{
+      type:'bar',
+      data:{
+        labels:aLabels,
+        datasets:[{data:aValues,backgroundColor:'#6BA3E8',borderRadius:6,maxBarThickness:48}]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y}%`}}},
+        scales:{
+          x:{ticks:{color:'#888880',font:{size:11}},grid:{display:false},border:{color:'#E0E0D8'}},
+          y:{ticks:{color:'#888880',font:{size:10},callback:v=>v+'%'},grid:{color:'#E0E0D840'},border:{color:'#E0E0D8'}}
+        }
+      }
+    });
+  }else{
+    ageChart=new Chart(aCtx,{
+      type:'bar',
+      data:{labels:['데이터 없음'],datasets:[{data:[0],backgroundColor:'#E0E0D8'}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{display:false}}}
+    });
+  }
+}
 
 init();
 </script>
