@@ -113,7 +113,8 @@ tbody tr:hover td.sticky{background:#FAFAF6}
   <div class="filter-section" id="filterSection">
     <div class="filter-row" id="yearRow"></div>
     <div class="filter-row" id="monthRow"></div>
-    <div class="filter-row" id="kwRow"></div>
+    <div class="filter-row" id="catRow"></div>
+    <div class="filter-row" id="kwRow" style="padding-top:6px;border-top:1px solid var(--bd);margin-top:6px"></div>
   </div>
 
   <!-- CHART -->
@@ -231,19 +232,22 @@ function renderFilters(){
   document.getElementById('monthRow').innerHTML=`<span class="filter-label">월</span>`+Array.from({length:12},(_,i)=>i+1).map(m=>`<button class="f-btn${selMonths.has(m)?' active':''}" onclick="toggleMonth(${m})">${m}월</button>`).join('')+(selMonths.size?`<button class="f-btn" style="color:var(--mt);font-size:10px" onclick="clearMonths()">✕ 초기화</button>`:'');
   const kws=getKws();
   // Category sub-filter for 글루타치온
-  let catHtml='';
+  const catRow=document.getElementById('catRow');
   if(tag==='글루타치온'){
-    catHtml=`<div class="filter-row" style="margin-bottom:8px"><span class="filter-label">구분</span>`+
+    catRow.style.display='flex';
+    catRow.innerHTML=`<span class="filter-label">구분</span>`+
       Object.keys(GLUTA_CATS).map(cat=>{
         const catKws=GLUTA_CATS[cat];
         const allOn=catKws.every(k=>selKw.has(k));
         return`<button class="f-btn${allOn?' active':''}" onclick="toggleCat('${cat}')" style="font-weight:600">${cat}</button>`;
       }).join('')+
       `<button class="f-btn" style="color:var(--mt);font-size:10px" onclick="selectAllKw()">전체선택</button>`+
-      `<button class="f-btn" style="color:var(--mt);font-size:10px" onclick="clearAllKw()">전체해제</button>`+
-      `</div>`;
+      `<button class="f-btn" style="color:var(--mt);font-size:10px" onclick="clearAllKw()">전체해제</button>`;
+  } else {
+    catRow.style.display='none';
+    catRow.innerHTML='';
   }
-  document.getElementById('kwRow').innerHTML=catHtml+`<span class="filter-label">KW</span>`+kws.map((kw,i)=>{const on=selKw.has(kw);const c=COLORS[i%COLORS.length];return`<button class="f-btn kw" style="border-color:${on?c:'var(--bd)'};background:${on?c+'12':'#fff'};color:${on?c:'var(--mt)'}" onclick="toggleKw('${kw}')"><span class="dot" style="background:${on?c:'var(--mt)'};opacity:${on?1:.3}"></span>${kw}</button>`;}).join('')+`<div class="metric-btns">${[["total","합계"],["pc","PC"],["mo","MO"]].map(([k,l])=>`<button class="m-btn${metric===k?' active':''}" onclick="setMetric('${k}')">${l}</button>`).join('')}</div>`;
+  document.getElementById('kwRow').innerHTML=`<span class="filter-label">KW</span>`+kws.map((kw,i)=>{const on=selKw.has(kw);const c=COLORS[i%COLORS.length];return`<button class="f-btn kw" style="border-color:${on?c:'var(--bd)'};background:${on?c+'12':'#fff'};color:${on?c:'var(--mt)'}" onclick="toggleKw('${kw}')"><span class="dot" style="background:${on?c:'var(--mt)'};opacity:${on?1:.3}"></span>${kw}</button>`;}).join('')+`<div class="metric-btns">${[["total","합계"],["pc","PC"],["mo","MO"]].map(([k,l])=>`<button class="m-btn${metric===k?' active':''}" onclick="setMetric('${k}')">${l}</button>`).join('')}</div>`;
 }
 
 function toggleYear(y){selYears.has(y)?selYears.delete(y):selYears.add(y);renderFilters();renderView();}
